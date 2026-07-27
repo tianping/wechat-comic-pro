@@ -83,10 +83,26 @@ def run_workflow(project_name, pages_data, intro_text, tags):
     os.makedirs(base_dir, exist_ok=True)
     os.makedirs(final_dir, exist_ok=True)
     
-    font_path = "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc"
-    try:
-        font = ImageFont.truetype(font_path, 40)
-    except:
+    # 尝试多个可能的中文字体路径以适应不同系统
+    font_paths = [
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
+        "/usr/share/fonts/google-droid-sans-fonts/DroidSansFallbackFull.ttf", # 适配 login2.bouchet
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc",
+        "/usr/share/fonts/adobe-source-han-sans/SourceHanSansCN-Bold.otf",
+    ]
+    
+    font = None
+    for path in font_paths:
+        if os.path.exists(path):
+            try:
+                font = ImageFont.truetype(path, 40)
+                print(f"Using font: {path}")
+                break
+            except:
+                continue
+    
+    if font is None:
+        print("Warning: No CJK font found, falling back to default.")
         font = ImageFont.load_default()
     
     for i, page in enumerate(pages_data):
