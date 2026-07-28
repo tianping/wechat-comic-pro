@@ -44,7 +44,7 @@ def draw_multi_line_bubble(draw, text, position, font, padding=20):
         draw.text((line_x, curr_y), line, font=font, fill=(0, 0, 0))
         curr_y += th + 10
 
-def generate_image(prompt, output_path, width=1024, height=1024):
+def generate_image_nvidia(prompt, output_path, width=1024, height=1024):
     api_key = os.environ.get("NVIDIA_IMAGE_API_KEY")
     if not api_key:
         raise ValueError("Error: NVIDIA_IMAGE_API_KEY not found.")
@@ -62,18 +62,80 @@ def generate_image(prompt, output_path, width=1024, height=1024):
         "height": height
     }
 
-    print(f"Generating image ({width}x{height}) for prompt: {prompt[:50]}...")
+    print(f"Generating image via NVIDIA NIM ({width}x{height}) for prompt: {prompt[:50]}...")
     response = requests.post(url, headers=headers, json=payload)
     
     if response.status_code != 200:
-        raise Exception(f"Error: {response.status_code} - {response.text}")
+        raise Exception(f"NVIDIA Error: {response.status_code} - {response.text}")
 
     data = response.json()
     base64_data = data["artifacts"][0]["base64"]
     
     with open(output_path, "wb") as f:
         f.write(base64.b64decode(base64_data))
-    print(f"Image saved to {output_path}")
+    print(f"Image saved to {output_path} (via NVIDIA)")
+
+def check_ollama(model="x/flux2-klein:latest"):
+    ollama_host = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
+    try:
+        # Quick check if Ollama is running and has the model
+        response = requests.get(f"{ollama_host}/api/tags", timeout=2)
+        if response.status_code == 200:
+            models = response.json().get("models", [])
+            for m in models:
+                if m.get("name") == model:
+                    return True
+    except:
+        pass
+    return False
+
+def generate_image_ollama(prompt, output_path, width=1024, height=1024, model="x/flux2-klein:latest"):
+    ollama_host = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
+    url = f"{ollama_host}/v1/images/generations"
+    
+    payload = {
+        "prompt": prompt,
+        "model": model,
+        "size": f"{width}x{height}"
+    }
+
+    print(f"Generating image via Ollama ({width}x{height}) for prompt: {prompt[:50]}...")
+    # Image generation can take a while, especially on local hardware
+    response = requests.post(url, json=payload, timeout=600)
+    
+    if response.status_code != 200:
+        raise Exception(f"Ollama Error: {response.status_code} - {response.text}")
+
+    data = response.json()
+    # OpenAI compatible response usually has data[0].b64_json
+    img_entry = data.get("data", [{}])[0]
+    base64_data = img_entry.get("b64_json")
+    
+    if not base64_data:
+        # Try to extract from data URI in url field if b64_json is missing
+        img_url = img_entry.get("url")
+        if img_url and img_url.startswith("data:image"):
+            base64_data = img_url.split(",")[1]
+    
+    if not base64_data:
+        raise Exception(f"No image data found in Ollama response: {data}")
+        
+    with open(output_path, "wb") as f:
+        f.write(base64.b64decode(base64_data))
+    print(f"Image saved to {output_path} (via Ollama)")
+
+def generate_image(prompt, output_path, width=1024, height=1024):
+    # Try Ollama first if it's available and has the model
+    try:
+        if check_ollama():
+            generate_image_ollama(prompt, output_path, width, height)
+            return
+    except Exception as e:
+        print(f"Ollama generation attempt failed: {e}")
+        print("Falling back to NVIDIA NIM...")
+
+    # Fallback to NVIDIA NIM
+    generate_image_nvidia(prompt, output_path, width, height)
 
 def run_workflow(project_name, pages_data, intro_text, tags):
     project_dir = os.path.join(os.getcwd(), project_name)

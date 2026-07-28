@@ -17,7 +17,8 @@ description: "微信公众号漫画创作器：仅支持中文压标，修复多
 
 ## 环境要求
 - **Python 3**：需安装 `Pillow` 和 `requests`。
-- **API 密钥**：在 `openclaw.json` 中配置 NVIDIA NIM (FLUX.1-dev) 或 OpenAI (DALL-E 3)。
+- **API 密钥**：在 `openclaw.json` 中配置 NVIDIA NIM (FLUX.1-dev) 或 OpenAI (DALL-E 3)；支持本地 Ollama (x/flux2-klein:latest) 自动检测与优先调用。
+- **本地 Ollama (可选)**：若要在本地绘图，请确保 Ollama 已启动且 `x/flux2-klein:latest` 已部署在 `http://127.0.0.1:11434`。可通过 `OLLAMA_HOST` 环境变量配置地址。
 - **字体**：系统中需包含 `Noto Sans CJK` 或同等支持中文的字体。
 
 ## 执行流程
