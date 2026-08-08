@@ -111,7 +111,7 @@ publish_to_wechat(
     pages_data=[...],
     title="漫画标题",        # 可选，默认用目录名
     author="作者名",          # 可选
-    digest="120字摘要",      # 可选，默认从 POST_INFO.md 提取
+    digest="120字以内的摘要",     # ⛔ 严格限制：不超过120字符（含字母、数字、标点、空格）
     publish_account=1,       # 可选，微信槽位序号或名称
 )
 ```

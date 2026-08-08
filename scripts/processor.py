@@ -214,11 +214,15 @@ def publish_to_wechat(project_dir, pages_data, title, author, digest, publish_ac
         f.write(html_content)
     print(f"article.html generated ({len(body_imgs)} body images)")
 
-    # Build article.yaml
+    # Build article.yaml — digest must be ≤120 chars (WeChat API limit)
+    raw_digest = digest or intro_text_from_post_info(project_dir)
+    if len(raw_digest) > 120:
+        print(f"[WARN] digest is {len(raw_digest)} chars, truncating to 120 (WeChat API limit)")
+        raw_digest = raw_digest[:120]
     article_yaml = {
         "title": title,
         "author": author or "",
-        "digest": digest or intro_text_from_post_info(project_dir),
+        "digest": raw_digest,
         "content_source": "article.html",
         "publish_completed": False,
     }
