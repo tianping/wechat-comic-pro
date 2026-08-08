@@ -13,6 +13,7 @@ description: "微信公众号漫画创作器：仅支持中文压标，修复多
 - **中文气泡压标**：基于 Python 的自动化文字压标，支持多行文本自动排版，避免 AI 生成乱码文字。
 - **WebP 格式输出**：高质量、低带宽占用，适配公众号上传要求。
 - **自动摘要与标签**：生成 `POST_INFO.md`，包含 120 字以内的摘要和 4-5 个优化标签。
+- **中间文件保留**：`save_drafts=True`（默认开启）时在项目 `drafts/` 目录保存故事板、画图提示词、角色锚点，方便回溯与迭代。
 - **多风格支持**：提供热血漫画、经典线稿（Ligne-claire）、赛博朋克、中式水墨等预设。
 
 ## 环境要求
@@ -47,6 +48,31 @@ description: "微信公众号漫画创作器：仅支持中文压标，修复多
 - 在指定位置压入中文对话气泡（支持多行自动合并气泡）。
 - 将所有图片转换为 `.webp`。
 - 生成 `POST_INFO.md`。
+
+## 中间文件保留（Drafts）
+
+`run_workflow()` 默认 `save_drafts=True`，会在项目目录下创建 `drafts/` 文件夹，保存以下中间产物：
+
+| 文件 | 内容 | 来源参数 |
+|------|------|----------|
+| `prompts.json` | 每页的画图提示词、尺寸、气泡文字、文件路径 | 自动从 `pages_data` 提取 |
+| `storyboard.md` | 故事构思、故事线、分镜脚本 | `storyboard` 参数 |
+| `character_anchors.md` | 角色锚点定义（外貌、服装、配色） | `character_anchors` 参数 |
+
+调用示例：
+```python
+run_workflow(
+    project_name="my_comic",
+    pages_data=[...],
+    intro_text="...",
+    tags=["#tag1", "#tag2"],
+    save_drafts=True,               # 设为 False 可跳过
+    storyboard="# 故事构思\n...",    # 故事线 markdown
+    character_anchors="# 角色锚点\n...", # 角色定义 markdown
+)
+```
+
+设为 `save_drafts=False` 则不创建 `drafts/` 目录，行为与旧版一致。
 
 ## 脚本参考 (scripts/processor.py)
 脚本需包含 `draw_multi_line_bubble` 逻辑以防止文字气泡重叠。
