@@ -1,3 +1,4 @@
+#!/gpfs/gibbs/project/mane/dz288/nodejs/bin/python3
 import os
 import requests
 import base64
@@ -137,20 +138,26 @@ def generate_image(prompt, output_path, width=1024, height=1024):
     # Fallback to NVIDIA NIM
     generate_image_nvidia(prompt, output_path, width, height)
 
-def run_workflow(project_name, pages_data, intro_text, tags):
+def run_workflow(project_name, pages_data, intro_text, tags, save_drafts=True, storyboard=None, character_anchors=None):
     project_dir = os.path.join(os.getcwd(), project_name)
     base_dir = os.path.join(project_dir, "base")
     final_dir = os.path.join(project_dir, "final")
+    drafts_dir = os.path.join(project_dir, "drafts")
     
     os.makedirs(base_dir, exist_ok=True)
     os.makedirs(final_dir, exist_ok=True)
     
+    if save_drafts:
+        os.makedirs(drafts_dir, exist_ok=True)
+    
     # 尝试多个可能的中文字体路径以适应不同系统
     font_paths = [
+        "/gpfs/gibbs/project/mane/dz288/nodejs/share/fonts/noto/NotoSansSC-Bold.ttf",
         "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
-        "/usr/share/fonts/google-droid-sans-fonts/DroidSansFallbackFull.ttf", # 适配 login2.bouchet
+        "/usr/share/fonts/google-droid-sans-fonts/DroidSansFallbackFull.ttf",
         "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc",
         "/usr/share/fonts/adobe-source-han-sans/SourceHanSansCN-Bold.otf",
+        "/usr/share/fonts/google-droid/DroidSansFallback.ttf",
     ]
     
     font = None
@@ -168,6 +175,7 @@ def run_workflow(project_name, pages_data, intro_text, tags):
         font = ImageFont.load_default()
     
     for i, page in enumerate(pages_data):
+        page_label = page.get("label", f"Page {i}")
         base_path = os.path.join(base_dir, f"page_{i}.png")
         final_path = os.path.join(final_dir, f"page_{i}.webp")
         
@@ -192,5 +200,35 @@ def run_workflow(project_name, pages_data, intro_text, tags):
     # Write POST_INFO.md
     with open(os.path.join(project_dir, "POST_INFO.md"), "w", encoding='utf-8') as f:
         f.write(f"# Post Information\n\n## Introduction\n{intro_text}\n\n## Tags\n{' '.join(tags)}")
+
+    if save_drafts:
+        # Save prompts.json — every page's prompt, dimensions, text, and label
+        prompts_out = []
+        for i, page in enumerate(pages_data):
+            prompts_out.append({
+                "page": i,
+                "label": page.get("label", f"Page {i}"),
+                "prompt": page.get("prompt", ""),
+                "width": page.get("width", 1024),
+                "height": page.get("height", 1024),
+                "text": page.get("text", ""),
+                "base_file": f"base/page_{i}.png",
+                "final_file": f"final/page_{i}.webp",
+            })
+        with open(os.path.join(drafts_dir, "prompts.json"), "w", encoding='utf-8') as f:
+            json.dump(prompts_out, f, ensure_ascii=False, indent=2)
+        print(f"Drafts saved: prompts.json")
+
+        # Save storyboard.md — story concept, storyline, shot-by-shot breakdown
+        if storyboard:
+            with open(os.path.join(drafts_dir, "storyboard.md"), "w", encoding='utf-8') as f:
+                f.write(storyboard)
+            print(f"Drafts saved: storyboard.md")
+
+        # Save character_anchors.md — character design reference
+        if character_anchors:
+            with open(os.path.join(drafts_dir, "character_anchors.md"), "w", encoding='utf-8') as f:
+                f.write(character_anchors)
+            print(f"Drafts saved: character_anchors.md")
     
     print(f"Workflow completed for {project_name}")
