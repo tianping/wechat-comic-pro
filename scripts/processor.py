@@ -1,5 +1,7 @@
 #!/gpfs/gibbs/project/mane/dz288/nodejs/bin/python3
 import os
+import shutil
+import subprocess
 import requests
 import base64
 import json
@@ -138,7 +140,124 @@ def generate_image(prompt, output_path, width=1024, height=1024):
     # Fallback to NVIDIA NIM
     generate_image_nvidia(prompt, output_path, width, height)
 
-def run_workflow(project_name, pages_data, intro_text, tags, save_drafts=True, storyboard=None, character_anchors=None):
+def _find_publish_script():
+    """Locate aws-wechat-article-publish/scripts/publish.py relative to this skill dir."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    candidates = [
+        os.path.join(here, "..", "aws-wechat-article-publish", "scripts", "publish.py"),
+        os.path.join(os.getcwd(), "skills", "aws-wechat-article-publish", "scripts", "publish.py"),
+    ]
+    for p in candidates:
+        normalised = os.path.normpath(p)
+        if os.path.isfile(normalised):
+            return normalised
+    return None
+
+
+def publish_to_wechat(project_dir, pages_data, title, author, digest, publish_account=None):
+    """Adapt comic output to aws-wechat-article-publish format and call publish.py full.
+
+    Creates article.yaml, article.html, imgs/, cover.* inside project_dir,
+    then invokes publish.py full to push to WeChat draft box.
+
+    Returns the subprocess exit code (0 = success).
+    """
+    publish_script = _find_publish_script()
+    if not publish_script:
+        print("[WARN] aws-wechat-article-publish skill not found — skipping WeChat publish.")
+        print("       Install it with: clawhub install aws-wechat-article-publish")
+        return 1
+
+    project_dir = os.path.abspath(project_dir)
+    final_dir = os.path.join(project_dir, "final")
+    imgs_dir = os.path.join(project_dir, "imgs")
+    os.makedirs(imgs_dir, exist_ok=True)
+
+    # Page 0 is the cover; pages 1..N are body images
+    cover_src = os.path.join(final_dir, "page_0.webp")
+    cover_dst = os.path.join(project_dir, "cover.webp")
+    if os.path.isfile(cover_src):
+        shutil.copy2(cover_src, cover_dst)
+        print(f"Cover copied: {cover_dst}")
+    else:
+        print("[WARN] No page_0.webp found for cover — publish.py will need a cover image.")
+
+    # Copy body pages (1..N) to imgs/
+    body_imgs = []
+    for i, page in enumerate(pages_data):
+        if i == 0:
+            continue  # page 0 = cover
+        src = os.path.join(final_dir, f"page_{i}.webp")
+        dst = os.path.join(imgs_dir, f"page_{i}.webp")
+        if os.path.isfile(src):
+            shutil.copy2(src, dst)
+            body_imgs.append(f"page_{i}.webp")
+            print(f"Body image copied: {dst}")
+
+    # Build article.html — simple sequential image gallery
+    html_parts = [
+        "<!DOCTYPE html>",
+        "<html><head><meta charset=\"utf-8\"></head><body>",
+        "<section style=\"max-width:640px;margin:0 auto;\">",
+    ]
+    for img_name in body_imgs:
+        html_parts.append(
+            f'  <p style="text-align:center;margin:0;padding:0;">'
+            f'<img src="imgs/{img_name}" style="width:100%;" /></p>'
+        )
+    html_parts.append("</section>")
+    html_parts.append("</body></html>")
+    html_content = "\n".join(html_parts)
+
+    article_html_path = os.path.join(project_dir, "article.html")
+    with open(article_html_path, "w", encoding="utf-8") as f:
+        f.write(html_content)
+    print(f"article.html generated ({len(body_imgs)} body images)")
+
+    # Build article.yaml
+    article_yaml = {
+        "title": title,
+        "author": author or "",
+        "digest": digest or intro_text_from_post_info(project_dir),
+        "content_source": "article.html",
+        "publish_completed": False,
+    }
+    import yaml  # lazy import
+    article_yaml_path = os.path.join(project_dir, "article.yaml")
+    with open(article_yaml_path, "w", encoding="utf-8") as f:
+        yaml.dump(article_yaml, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
+    print(f"article.yaml generated")
+
+    # Call publish.py full
+    cmd = ["python3", publish_script, "full", project_dir]
+    if publish_account:
+        cmd.extend(["--account", str(publish_account)])
+    # publish.py reads aws.env + .aws-article/config.yaml from cwd (repo root)
+    print(f"Calling publish.py: {' '.join(cmd)}")
+    result = subprocess.run(cmd, cwd=os.getcwd())
+    if result.returncode == 0:
+        print("[OK] WeChat publish completed (check draft box).")
+    else:
+        print(f"[ERROR] publish.py exited with code {result.returncode}")
+    return result.returncode
+
+
+def intro_text_from_post_info(project_dir):
+    """Extract the introduction text from POST_INFO.md if it exists."""
+    path = os.path.join(project_dir, "POST_INFO.md")
+    if not os.path.isfile(path):
+        return ""
+    with open(path, encoding="utf-8") as f:
+        content = f.read()
+    # Parse the Introduction section
+    if "## Introduction" in content:
+        part = content.split("## Introduction", 1)[1]
+        part = part.split("## Tags", 1)[0]
+        return part.strip()
+    return ""
+
+
+def run_workflow(project_name, pages_data, intro_text, tags, save_drafts=True, storyboard=None, character_anchors=None, publish=False, publish_title=None, publish_author=None, publish_digest=None, publish_account=None):
     project_dir = os.path.join(os.getcwd(), project_name)
     base_dir = os.path.join(project_dir, "base")
     final_dir = os.path.join(project_dir, "final")
@@ -232,3 +351,10 @@ def run_workflow(project_name, pages_data, intro_text, tags, save_drafts=True, s
             print(f"Drafts saved: character_anchors.md")
     
     print(f"Workflow completed for {project_name}")
+
+    if publish:
+        title = publish_title or project_name
+        author = publish_author or ""
+        digest = publish_digest or intro_text
+        print("\n--- WeChat Publish ---")
+        publish_to_wechat(project_dir, pages_data, title, author, digest, publish_account)

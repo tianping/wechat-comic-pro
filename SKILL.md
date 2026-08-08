@@ -14,6 +14,7 @@ description: "微信公众号漫画创作器：仅支持中文压标，修复多
 - **WebP 格式输出**：高质量、低带宽占用，适配公众号上传要求。
 - **自动摘要与标签**：生成 `POST_INFO.md`，包含 120 字以内的摘要和 4-5 个优化标签。
 - **中间文件保留**：`save_drafts=True`（默认开启）时在项目 `drafts/` 目录保存故事板、画图提示词、角色锚点，方便回溯与迭代。
+- **公众号草稿箱发布**：`publish=True` 时自动适配产物并调用 `aws-wechat-article-publish` 的 `publish.py full` 将漫画推入微信公众号草稿箱；未安装该 skill 时安全跳过。
 - **多风格支持**：提供热血漫画、经典线稿（Ligne-claire）、赛博朋克、中式水墨等预设。
 
 ## 环境要求
@@ -73,6 +74,50 @@ run_workflow(
 ```
 
 设为 `save_drafts=False` 则不创建 `drafts/` 目录，行为与旧版一致。
+
+## 公众号草稿箱发布（Publish）
+
+`run_workflow()` 支持 `publish=True` 参数，画图完成后自动：
+
+1. 将 `final/page_0.webp` 复制为项目根 `cover.webp`（封面）；
+2. 将 `final/page_1..N.webp` 复制到 `imgs/` 目录（正文配图）；
+3. 生成 `article.html`（简单串图 HTML，每张图 `<img>` 标签）；
+4. 生成 `article.yaml`（标题、作者、摘要等元数据）；
+5. 调用 `aws-wechat-article-publish/scripts/publish.py full` 推入公众号草稿箱。
+
+**前置条件：**
+- 已安装 `aws-wechat-article-publish` skill（同 `skills/` 目录下）
+- 仓库根有 `aws.env`（`WECHAT_N_APPID` / `WECHAT_N_APPSECRET`）和 `.aws-article/config.yaml`（`publish_method`、微信槽位等）
+
+**未安装时行为：** 检测不到 `publish.py` 时打印警告并跳过，不影响画图流程。
+
+调用示例：
+```python
+run_workflow(
+    project_name="my_comic",
+    pages_data=[...],
+    intro_text="...",
+    tags=["#tag1"],
+    publish=True,                  # 启用发布
+    publish_title="漫画标题",        # 可选，默认用 project_name
+    publish_author="作者名",        # 可选
+    publish_digest="120字摘要",     # 可选，默认用 intro_text
+    publish_account=1,             # 可选，微信槽位序号或名称
+)
+```
+
+发布后项目目录结构：
+```
+my_comic/
+├── base/            # AI 原始底图
+├── final/           # 压标后 WebP
+├── drafts/          # 中间文件
+├── imgs/            # ← publish 时新增：正文配图
+├── article.html     # ← publish 时新增：串图 HTML
+├── article.yaml     # ← publish 时新增：发布元数据
+├── cover.webp       # ← publish 时新增：封面
+└── POST_INFO.md
+```
 
 ## 脚本参考 (scripts/processor.py)
 脚本需包含 `draw_multi_line_bubble` 逻辑以防止文字气泡重叠。
