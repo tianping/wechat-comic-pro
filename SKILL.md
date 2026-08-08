@@ -109,7 +109,7 @@ run_workflow(
 publish_to_wechat(
     project_dir="my_comic",
     pages_data=[...],
-    title="漫画标题",        # 可选，默认用目录名
+    title="漫画标题",        # ⛔ 含固定前缀"漫画 | "后总长不超过64字符（含字母、数字、标点、空格）
     author="作者名",          # 可选
     digest="120字以内的摘要",     # ⛔ 严格限制：不超过120字符（含字母、数字、标点、空格）
     publish_account=1,       # 可选，微信槽位序号或名称

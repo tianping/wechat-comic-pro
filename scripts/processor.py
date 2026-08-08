@@ -214,13 +214,23 @@ def publish_to_wechat(project_dir, pages_data, title, author, digest, publish_ac
         f.write(html_content)
     print(f"article.html generated ({len(body_imgs)} body images)")
 
+    # Prepend fixed prefix to title and enforce ≤64 chars (WeChat API limit)
+    TITLE_PREFIX = "漫画 | "
+    full_title = TITLE_PREFIX + title
+    if len(full_title) > 64:
+        # Truncate the user title to fit prefix within 64 chars
+        max_title_len = 64 - len(TITLE_PREFIX)
+        print(f"[WARN] Title with prefix is {len(full_title)} chars, truncating to 64 (WeChat API limit)")
+        title = title[:max_title_len]
+        full_title = TITLE_PREFIX + title
+
     # Build article.yaml — digest must be ≤120 chars (WeChat API limit)
     raw_digest = digest or intro_text_from_post_info(project_dir)
     if len(raw_digest) > 120:
         print(f"[WARN] digest is {len(raw_digest)} chars, truncating to 120 (WeChat API limit)")
         raw_digest = raw_digest[:120]
     article_yaml = {
-        "title": title,
+        "title": full_title,
         "author": author or "",
         "digest": raw_digest,
         "content_source": "article.html",
