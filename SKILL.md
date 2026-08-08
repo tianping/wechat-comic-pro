@@ -91,22 +91,30 @@ run_workflow(
 
 **未安装时行为：** 检测不到 `publish.py` 时打印警告并跳过，不影响画图流程。
 
-调用示例：
+**调用方式：** 画图和发布是两个独立步骤——先跑 `run_workflow()` 生成漫画，检查满意后再调 `publish_to_wechat()` 推草稿箱。
+
 ```python
+# 第一步：画图
 run_workflow(
     project_name="my_comic",
     pages_data=[...],
     intro_text="...",
     tags=["#tag1"],
-    publish=True,                  # 启用发布
-    publish_title="漫画标题",        # 可选，默认用 project_name
-    publish_author="作者名",        # 可选
-    publish_digest="120字摘要",     # 可选，默认用 intro_text
-    publish_account=1,             # 可选，微信槽位序号或名称
+    save_drafts=True,
+    storyboard="# 故事构思\n...",
+    character_anchors="# 角色锚点\n...",
+)
+
+# 第二步：检查 final/*.webp 满意后，推草稿箱
+publish_to_wechat(
+    project_dir="my_comic",
+    pages_data=[...],
+    title="漫画标题",        # 可选，默认用目录名
+    author="作者名",          # 可选
+    digest="120字摘要",      # 可选，默认从 POST_INFO.md 提取
+    publish_account=1,       # 可选，微信槽位序号或名称
 )
 ```
-
-发布后项目目录结构：
 ```
 my_comic/
 ├── base/            # AI 原始底图

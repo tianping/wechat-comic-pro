@@ -257,7 +257,7 @@ def intro_text_from_post_info(project_dir):
     return ""
 
 
-def run_workflow(project_name, pages_data, intro_text, tags, save_drafts=True, storyboard=None, character_anchors=None, publish=False, publish_title=None, publish_author=None, publish_digest=None, publish_account=None):
+def run_workflow(project_name, pages_data, intro_text, tags, save_drafts=True, storyboard=None, character_anchors=None):
     project_dir = os.path.join(os.getcwd(), project_name)
     base_dir = os.path.join(project_dir, "base")
     final_dir = os.path.join(project_dir, "final")
@@ -351,10 +351,3 @@ def run_workflow(project_name, pages_data, intro_text, tags, save_drafts=True, s
             print(f"Drafts saved: character_anchors.md")
     
     print(f"Workflow completed for {project_name}")
-
-    if publish:
-        title = publish_title or project_name
-        author = publish_author or ""
-        digest = publish_digest or intro_text
-        print("\n--- WeChat Publish ---")
-        publish_to_wechat(project_dir, pages_data, title, author, digest, publish_account)
