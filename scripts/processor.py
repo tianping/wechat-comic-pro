@@ -317,15 +317,20 @@ def run_workflow(project_name, pages_data, intro_text, tags, save_drafts=True, s
         height = page.get("height", 1024)
         generate_image(page["prompt"], base_path, width, height)
         
-        # Add text
+        # Page 0 is the cover (2.35:1) — skip text overlay for clean visuals
+        is_cover = (i == 0)
+        
+        # Add text (skip on cover to preserve visual quality)
         img = Image.open(base_path)
         draw = ImageDraw.Draw(img)
         
         text = page.get("text", "")
-        if text:
+        if text and not is_cover:
             # Position text at the bottom-ish
             text_pos = (width // 2, int(height * 0.85))
             draw_multi_line_bubble(draw, text, text_pos, font)
+        elif is_cover and text:
+            print(f"  (Skipping text overlay on cover page 0 to preserve visual quality)")
             
         img.save(final_path, "WEBP")
         print(f"Final image saved to {final_path}")
