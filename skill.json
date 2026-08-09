@@ -1,0 +1,14 @@
+{
+  "name": "wechat-comic-pro",
+  "version": "1.0.0",
+  "author": "Dejian",
+  "description": "微信公众号漫画创作器：仅支持中文压标，修复多行文字气泡叠层问题，针对微信 2.35:1 封面与 1:1 正文优化。",
+  "license": "MIT",
+  "tags": ["wechat", "公众号", "漫画", "comic", "image-generation"],
+  "permissions": ["filesystem"],
+  "entryPoint": {
+    "type": "natural",
+    "path": "SKILL.md"
+  },
+  "dependencies": []
+}
