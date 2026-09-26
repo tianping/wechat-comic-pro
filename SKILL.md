@@ -19,8 +19,8 @@ description: "微信公众号漫画创作器：仅支持中文压标，修复多
 
 ## 环境要求
 - **Python 3**：需安装 `Pillow` 和 `requests`。
-- **API 密钥**：在 `openclaw.json` 中配置 NVIDIA NIM (FLUX.1-dev) 或 OpenAI (DALL-E 3)；支持本地 Ollama (x/flux2-klein:latest) 自动检测与优先调用。
-- **本地 Ollama (可选)**：若要在本地绘图，请确保 Ollama 已启动且 `x/flux2-klein:latest` 已部署在 `http://127.0.0.1:11434`。可通过 `OLLAMA_HOST` 环境变量配置地址。
+- **生图后端（默认 Agnes）**：与 `wechat-english` 同一套约定（Dejian 2026-09-26 指定）。`scripts/agnes_generator.py` 封装 Agnes 文生图（endpoint `https://apihub.agnes-ai.com/v1/images/generations`，模型降级链 `agnes-image-2.5-flash` → `2.1` → `2.0`，免费）；API key 复用 `openclaw.json` 里 `custom-agnes` provider 的 `apiKey`（和 agnes-3.0-flash 文本模型共用），或用环境变量 `AGNES_API_KEY` 覆盖。宽高比自动映射：封面 2.35:1 → `21:9`，正文页 1:1 → `1:1`。
+- **兜底后端（可选，不再默认启用）**：Agnes 全链路失败时可临时用环境变量 `COMIC_IMAGE_BACKEND=ollama` 或 `COMIC_IMAGE_BACKEND=nvidia` 走旧链路；Ollama 需本地 `x/flux2-klein:latest`（`http://127.0.0.1:11434`，`OLLAMA_HOST` 可改），NVIDIA 需 `NVIDIA_IMAGE_API_KEY`。
 - **字体**：系统中需包含 `Noto Sans CJK` 或同等支持中文的字体。
 
 ## 执行流程

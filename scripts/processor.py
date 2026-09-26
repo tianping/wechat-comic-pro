@@ -2,10 +2,15 @@
 import os
 import shutil
 import subprocess
+import sys
 import requests
 import base64
 import json
 from PIL import Image, ImageDraw, ImageFont
+
+# 生图后端：Agnes（与 wechat-english 同一套约定，见 agnes_generator.py）
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import agnes_generator
 
 # 微信公众号漫画处理器 - 仅中文版
 def draw_multi_line_bubble(draw, text, position, font, padding=20):
@@ -128,17 +133,29 @@ def generate_image_ollama(prompt, output_path, width=1024, height=1024, model="x
     print(f"Image saved to {output_path} (via Ollama)")
 
 def generate_image(prompt, output_path, width=1024, height=1024):
-    # Try Ollama first if it's available and has the model
+    """生图统一走 Agnes 降级链（2.5-flash → 2.1 → 2.0，见 agnes_generator.py）。
+
+    Ollama/NVIDIA NIM 旧链路保留但不再默认启用（Dejian 2026-09-26 指定：生图全部切 Agnes）；
+    若 Agnes 全链路失败，可临时用 COMIC_IMAGE_BACKEND=ollama|nvidia 环境变量兜底。
+    """
+    backend = os.environ.get("COMIC_IMAGE_BACKEND", "agnes").strip().lower()
+    if backend == "nvidia":
+        generate_image_nvidia(prompt, output_path, width, height)
+        return
+    if backend == "ollama":
+        generate_image_ollama(prompt, output_path, width, height)
+        return
     try:
+        agnes_generator.generate_image(prompt, output_path, width, height)
+        return
+    except Exception as e:
+        print(f"[WARN] Agnes 生图失败: {e}")
+        print("[INFO] 尝试 Ollama 兜底...")
         if check_ollama():
             generate_image_ollama(prompt, output_path, width, height)
             return
-    except Exception as e:
-        print(f"Ollama generation attempt failed: {e}")
-        print("Falling back to NVIDIA NIM...")
-
-    # Fallback to NVIDIA NIM
-    generate_image_nvidia(prompt, output_path, width, height)
+        print("[INFO] 尝试 NVIDIA NIM 兜底...")
+        generate_image_nvidia(prompt, output_path, width, height)
 
 def _find_publish_script():
     """Locate aws-wechat-article-publish/scripts/publish.py relative to this skill dir."""
